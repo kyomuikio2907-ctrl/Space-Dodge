@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Space Dodge - Fighter Jets</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{min-height:100vh;background:radial-gradient(ellipse at 50% 0%,#1e3a5f 0%,#0b1229 35%,#050814 70%,#000 100%);font-family:Arial,sans-serif;color:#fff;display:flex;justify-content:center;align-items:center;padding:16px;overflow:hidden}
+    .game-container{width:100%;max-width:920px}
+    h1{text-align:center;margin-bottom:12px;letter-spacing:4px;font-size:28px;text-shadow:0 0 20px rgba(56,189,248,.5),0 0 40px rgba(56,189,248,.2)}
+    .info{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+    .info-left,.info-right{display:flex;gap:8px;flex-wrap:wrap}
+    .box{background:rgba(8,15,35,.75);border:1px solid rgba(56,189,248,.3);border-radius:20px;padding:8px 14px;backdrop-filter:blur(10px);font-size:14px;box-shadow:0 0 12px rgba(56,189,248,.08)}
+    #gameArea{position:relative;width:100%;height:520px;overflow:hidden;border-radius:18px;border:1px solid rgba(56,189,248,.25);background:radial-gradient(ellipse at 50% 100%,#0c1a3a 0%,#060d1f 45%,#03050f 100%);box-shadow:0 0 50px rgba(56,189,248,.15),inset 0 0 80px rgba(0,0,0,.5);touch-action:none;outline:none;cursor:pointer}
+    .space-star{position:absolute;background:#fff;border-radius:50%;opacity:.75;pointer-events:none}
+    .space-star.twinkle{animation:twinkle 2.5s ease-in-out infinite alternate}
+    @keyframes twinkle{from{opacity:.3;transform:scale(.8)}to{opacity:1;transform:scale(1.15)}}
+    .nebula{position:absolute;border-radius:50%;pointer-events:none;filter:blur(40px);opacity:.18;z-index:0}
+    #ship{position:absolute;width:64px;height:88px;left:0;bottom:20px;z-index:10;pointer-events:none}
+    #ship svg{width:100%;height:100%;display:block;overflow:visible}
+    .flame{display:none!important}
+    @keyframes flameMove{from{transform:scaleY(.7)}to{transform:scaleY(1.2)}}
+    .asteroid{position:absolute;z-index:5;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
+    .asteroid-rock{position:absolute;inset:0;animation-name:spinRock;animation-timing-function:linear;animation-iteration-count:infinite;transition:filter .08s ease}
+    .asteroid-rock svg{width:100%;height:100%;display:block;overflow:visible}
+    @keyframes spinRock{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    .asteroid.hit .asteroid-rock{filter:brightness(2.1) saturate(1.4)}
+    .enemy-ship{position:absolute;z-index:5;display:flex;align-items:center;justify-content:center;pointer-events:none;will-change:transform,left,top}
+    .enemy-ship svg{width:100%;height:100%;display:block}
+    .enemy-ship.hit{filter:brightness(2) drop-shadow(0 0 8px #fff)}
+
+    .asteroid-hp{position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:36px;height:6px;padding:0;border-radius:3px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.25);overflow:hidden;pointer-events:none;z-index:6}
+    .asteroid-hp-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#22c55e,#eab308,#ef4444);transform-origin:left center;transition:width .12s}
+    .particle{position:absolute;z-index:9;width:6px;height:6px;border-radius:50%;background:#fbbf24;pointer-events:none;animation:fly .5s ease-out forwards}
+    @keyframes fly{to{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}
+    .collect-star,.diamond{position:absolute;z-index:6}
+    .collect-star{font-size:28px}.diamond{font-size:30px}
+    .player-bullet{position:absolute;z-index:9;pointer-events:none;will-change:top}
+    .player-bullet svg{width:100%;height:100%;display:block}
+    .powerup{position:absolute;width:38px;height:38px;border-radius:50%;z-index:9;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:bold;border:2px solid rgba(255,255,255,.85);backdrop-filter:blur(4px);animation:powerPulse .65s ease-in-out infinite alternate}
+    .powerup.double{background:radial-gradient(circle,#60a5fa,#1d4ed8 72%);box-shadow:0 0 20px #60a5fa,0 0 40px rgba(96,165,250,.35)}
+    .powerup.rapid{background:radial-gradient(circle,#facc15,#ea580c 72%);box-shadow:0 0 20px #f59e0b,0 0 40px rgba(245,158,11,.35)}
+    @keyframes powerPulse{from{transform:scale(.92)}to{transform:scale(1.08)}}
+    .power-text{position:absolute;color:#fde68a;font-weight:bold;font-size:14px;text-shadow:0 0 8px rgba(250,204,21,.8);z-index:50;pointer-events:none}
+    #startScreen,#gameOverScreen,#levelScreen,#shopScreen,#winScreen{position:absolute;inset:0;background:rgba(2,6,20,.88);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:24px;z-index:30;backdrop-filter:blur(6px)}
+    #gameOverScreen,#levelScreen,#shopScreen,#winScreen{display:none}
+    #startScreen h2,#gameOverScreen h2,#levelScreen h2,#shopScreen h2,#winScreen h2{font-size:32px;margin-bottom:10px}
+    #startScreen p,#gameOverScreen p,#levelScreen p,#shopScreen p,#winScreen p{max-width:600px;line-height:1.55;color:#cbd5e1;margin-bottom:16px;font-size:15px}
+    button{border:none;border-radius:28px;padding:12px 22px;background:linear-gradient(135deg,#1d4ed8,#7c3aed);color:#fff;font-weight:bold;cursor:pointer;font-size:15px;touch-action:none;margin:4px;box-shadow:0 0 20px rgba(37,99,235,.35);transition:transform .12s,box-shadow .12s}
+    button:hover{transform:translateY(-1px);box-shadow:0 0 28px rgba(56,189,248,.45)}
+    .shop-btn{background:linear-gradient(135deg,#f59e0b,#b45309)}
+    #skinGridWrap{width:100%;max-width:760px;max-height:300px;overflow-y:auto;padding:6px;margin-bottom:12px}
+    #skinGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+    .skin-card{background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.15);border-radius:12px;padding:8px 5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:border-color .15s,transform .15s}
+    .skin-card:hover{transform:translateY(-2px)}
+    .skin-card.selected{border-color:#38bdf8;background:rgba(56,189,248,.14)}
+    .skin-card.locked{opacity:.72}
+    .skin-preview{width:44px;height:56px}
+    .skin-preview svg{width:100%;height:100%}
+    .skin-name{font-size:10px;font-weight:700;line-height:1.2;min-height:24px}
+    .skin-missile-info{font-size:9px;color:#64748b}
+    .skin-price{font-size:10px;color:#fde68a;font-weight:700}
+    .skin-price.owned{color:#86efac}
+    .skin-price.selected-tag{color:#38bdf8}
+    .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+    .controls button{font-size:17px;min-height:50px}
+    .help{text-align:center;margin-top:8px;color:#94a3b8;font-size:13px;line-height:1.55}
+    .danger{color:#fda4af}.bonus{color:#fde68a}
+    @media(max-width:600px){#gameArea{height:430px}h1{font-size:22px}.box{font-size:12px;padding:7px 11px}.controls button{font-size:14px;padding:10px 8px}}
+  </style>
+</head>
+<body>
+<div class="game-container">
+  <h1>🚀 SPACE DODGE</h1>
+  <div class="info">
+    <div class="info-left">
+      <div class="box">Điểm: <strong id="score">0</strong></div>
+      <div class="box">Màn: <strong id="stage">1</strong>/3</div>
+      <div class="box">High: <strong id="highScore">0</strong></div>
+      <div class="box">Vàng: <strong id="goldDisplay">0</strong> 🪙</div>
+    </div>
+    <div class="info-right">
+      <div class="box">Mục tiêu: <strong id="target">300</strong></div>
+      <div class="box">Sức mạnh: <strong id="powerStatus">Bình thường</strong></div>
+    </div>
+  </div>
+  <div id="gameArea" tabindex="0">
+    <div id="ship"></div>
+    <div id="startScreen">
+      <h2>🌌 SPACE DODGE</h2>
+      <p>Tàu tự động bắn tên lửa theo skin. Phá thiên thạch tích 🪙 Vàng mở khóa máy bay trong Gara. Mỗi khối đá có HP.</p>
+      <button id="startButton">BẮT ĐẦU GAME</button>
+      <button id="shopButton" class="shop-btn">🛩️ CỬA HÀNG SKIN</button>
+    </div>
+    <div id="shopScreen">
+      <h2>🛩️ GARA PHI CÔNG</h2>
+      <p>Vàng: <strong id="shopGold">0</strong> 🪙 • Mỗi skin có tên lửa &amp; sát thương riêng</p>
+      <div id="skinGridWrap"><div id="skinGrid"></div></div>
+      <button id="closeShopButton">ĐÓNG</button>
+    </div>
+    <div id="levelScreen">
+      <h2 id="levelTitle">MÀN 2</h2>
+      <p id="levelText">Thiên thạch cứng hơn và bonus xuất hiện nhiều hơn.</p>
+      <button id="continueButton">TIẾP TỤC</button>
+    </div>
+    <div id="gameOverScreen">
+      <h2>💥 GAME OVER</h2>
+      <p>Điểm: <strong id="finalScore">0</strong></p>
+      <p>Vàng nhận: <strong id="goldEarnedOver">0</strong> 🪙</p>
+      <button id="restartButton">CHƠI LẠI</button>
+      <button id="shopButtonOver" class="shop-btn">🛩️ CỬA HÀNG</button>
+    </div>
+    <div id="winScreen">
+      <h2>🏆 CHIẾN THẮNG!</h2>
+      <p>Hoàn thành 3 màn! Điểm: <strong id="winScore">0</strong></p>
+      <p>Vàng nhận: <strong id="goldEarnedWin">0</strong> 🪙</p>
+      <button id="playAgainButton">CHƠI LẠI</button>
+      <button id="shopButtonWin" class="shop-btn">🛩️ CỬA HÀNG</button>
+    </div>
+  </div>
+  <div class="controls">
+    <button id="leftButton">◀ TRÁI</button>
+    <button id="rightButton">PHẢI ▶</button>
+  </div>
+  <div class="help">
+    ← → / A D / kéo / chạm • Tàu <strong>tự động bắn</strong><br>
+    ⭐ +10 &nbsp; 💎 +50 &nbsp; Phá đá +5 &nbsp;
+    <span class="bonus">🔵×2 Double &nbsp; 🟠⚡ Rapid</span> &nbsp;
+    <span class="danger">Va chạm = Game Over</span>
+  </div>
+</div>
+<script>
+
+const gameArea=document.getElementById("gameArea");
+const ship=document.getElementById("ship");
+const startScreen=document.getElementById("startScreen");
+const levelScreen=document.getElementById("levelScreen");
+const gameOverScreen=document.getElementById("gameOverScreen");
+const winScreen=document.getElementById("winScreen");
+const shopScreen=document.getElementById("shopScreen");
+const scoreText=document.getElementById("score");
+const stageText=document.getElementById("stage");
+const targetText=document.getElementById("target");
+const highScoreText=document.getElementById("highScore");
+const goldDisplay=document.getElementById("goldDisplay");
+const shopGoldText=document.getElementById("shopGold");
+const goldEarnedOverText=document.getElementById("goldEarnedOver");
+const goldEarnedWinText=document.getElementById("goldEarnedWin");
+const skinGrid=document.getElementById("skinGrid");
+const powerStatus=document.getElementById("powerStatus");
+const finalScore=document.getElementById("finalScore");
+const winScore=document.getElementById("winScore");
+const startButton=document.getElementById("startButton");
+const restartButton=document.getElementById("restartButton");
+const playAgainButton=document.getElementById("playAgainButton");
+const continueButton=document.getElementById("continueButton");
+const levelTitle=document.getElementById("levelTitle");
+const levelText=document.getElementById("levelText");
+const leftButton=document.getElementById("leftButton");
+const rightButton=document.getElementById("rightButton");
+const shopButton=document.getElementById("shopButton");
+const shopButtonOver=document.getElementById("shopButtonOver");
+const shopButtonWin=document.getElementById("shopButtonWin");
+const closeShopButton=document.getElementById("closeShopButton");
+
+let bossAlive=false;
+const MAX_ENEMIES=14;const MAX_BULLETS=18;function countEnemies(){return document.querySelectorAll(".enemy-ship").length}
+let score=0,stage=1,highScore=Number(localStorage.getItem("spaceDodgeHighScore")||0);
+let shipX=0,moveLeft=false,moveRight=false,gameRunning=false;
+let asteroidTimer,starTimer,diamondTimer,scoreTimer,shootTimer;
+let asteroidSpeed=2.0,audioContext,lastPlayerShot=0,doubleShotUntil=0,rapidFireUntil=0;
+const playerBullets=[];
+const stageTargets=[300,700,1200];
+highScoreText.innerText=highScore;
+
+const SKINS=[
+  {id:"f16",name:"Sói Bạc Tia Chớp",price:0,wing:"swept",tail:"single",canard:false,primary:"#22d3ee",secondary:"#0e7490",accent:"#67e8f9",missileName:"AIM-9",mColor:"#a5f3fc",mHead:"#22d3ee",damage:1,mSpeed:8.5,mSize:[10,36]},
+  {id:"mig29",name:"Rồng Lửa Hò Hét",price:80,wing:"swept",tail:"twin",canard:false,primary:"#ef4444",secondary:"#7f1d1d",accent:"#fbbf24",missileName:"R-73",mColor:"#fecaca",mHead:"#f97316",damage:1,mSpeed:8.8,mSize:[10,36]},
+  {id:"fa18",name:"Thanh Long",price:100,wing:"swept",tail:"twin",canard:false,primary:"#4ade80",secondary:"#166534",accent:"#86efac",missileName:"AMRAAM",mColor:"#bbf7d0",mHead:"#22c55e",damage:1,mSpeed:9.0,mSize:[10,36]},
+  {id:"su27",name:"Sát Thủ Huyền Ảo",price:120,wing:"swept",tail:"twin",canard:false,primary:"#a78bfa",secondary:"#4c1d95",accent:"#e9d5ff",missileName:"R-27",mColor:"#ddd6fe",mHead:"#c084fc",damage:1,mSpeed:9.0,mSize:[10,36]},
+  {id:"f15",name:"Thần Kiếm Phó-ton",price:140,wing:"swept",tail:"twin",canard:false,primary:"#fbbf24",secondary:"#92400e",accent:"#fde68a",missileName:"Sparrow",mColor:"#fef3c7",mHead:"#f59e0b",damage:1,mSpeed:9.2,mSize:[10,36]},
+  {id:"typh",name:"Chúa Tể Sấm Sét",price:160,wing:"delta",tail:"single",canard:true,primary:"#22d3ee",secondary:"#155e75",accent:"#a5f3fc",missileName:"Meteor",mColor:"#cffafe",mHead:"#06b6d4",damage:1,mSpeed:9.5,mSize:[10,36]},
+  {id:"f14",name:"Áo Giáp Nhanh Chớp",price:220,wing:"variable",tail:"twin",canard:false,primary:"#f97316",secondary:"#9a3412",accent:"#fdba74",missileName:"Phoenix",mColor:"#ffedd5",mHead:"#fb923c",damage:2,mSpeed:9.8,mSize:[11,32]},
+  {id:"su35",name:"Cánh Lửa Thần Thánh",price:260,wing:"swept",tail:"twin",canard:false,primary:"#38bdf8",secondary:"#1e3a8a",accent:"#7dd3fc",missileName:"R-77",mColor:"#e0f2fe",mHead:"#0ea5e9",damage:2,mSpeed:10.0,mSize:[11,38]},
+  {id:"f22",name:"Hổ Trắng",price:360,wing:"delta",tail:"twin",canard:false,primary:"#e2e8f0",secondary:"#334155",accent:"#94a3b8",missileName:"AMRAAM+",mColor:"#f1f5f9",mHead:"#cbd5e1",damage:2,mSpeed:10.5,mSize:[11,38]},
+  {id:"su57",name:"Tiếng Hú Bầu Trời",price:400,wing:"delta",tail:"twin",canard:false,primary:"#e879f9",secondary:"#701a75",accent:"#f0abfc",missileName:"K-77M",mColor:"#fae8ff",mHead:"#d946ef",damage:2,mSpeed:10.8,mSize:[10,32]},
+  {id:"f35",name:"Huyền Vũ",price:450,wing:"delta",tail:"single",canard:false,primary:"#818cf8",secondary:"#312e81",accent:"#c7d2fe",missileName:"JATM",mColor:"#e0e7ff",mHead:"#6366f1",damage:2,mSpeed:11.2,mSize:[11,38]},
+  {id:"sr71",name:"Cái Kìm Địa Ngục",price:500,wing:"delta",tail:"canted",canard:false,primary:"#1e293b",secondary:"#020617",accent:"#f87171",missileName:"Plasma Dart",mColor:"#fecaca",mHead:"#ef4444",damage:3,mSpeed:12.5,mSize:[12,40]},
+];
+
+let gold=Number(localStorage.getItem("spaceDodgeGold")||0);
+let unlockedSkins=JSON.parse(localStorage.getItem("spaceDodgeUnlocked")||'["f16"]');
+let selectedSkin=localStorage.getItem("spaceDodgeSkin")||"f16";
+if(!unlockedSkins.includes(selectedSkin)) unlockedSkins.push(selectedSkin);
+
+function saveSkinState(){
+  localStorage.setItem("spaceDodgeGold",String(gold));
+  localStorage.setItem("spaceDodgeUnlocked",JSON.stringify(unlockedSkins));
+  localStorage.setItem("spaceDodgeSkin",selectedSkin);
+}
+function refreshGoldDisplays(){goldDisplay.innerText=gold;shopGoldText.innerText=gold}
+function awardGold(n){gold+=n;saveSkinState();refreshGoldDisplays();return n}
+
+function buildFighterSVG(p){
+  const uid="s"+(p.id||"x");
+  const col=p.primary||"#22d3ee";
+  const acc=p.accent||"#67e8f9";
+  const dark=p.secondary||"#0e7490";
+  /* Top-down, trục giữa x=50 — đuôi/cánh/lửa đối xứng */
+  return `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id="h-${uid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#f8fafc"/>
+        <stop offset="40%" stop-color="${col}"/>
+        <stop offset="100%" stop-color="${dark}"/>
+      </linearGradient>
+      <linearGradient id="w-${uid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${acc}"/>
+        <stop offset="100%" stop-color="${col}"/>
+      </linearGradient>
+      <linearGradient id="f-${uid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#fff"/>
+        <stop offset="40%" stop-color="#fde68a"/>
+        <stop offset="100%" stop-color="transparent"/>
+      </linearGradient>
+    </defs>
+    <!-- lửa đuôi (giữa) -->
+    <path d="M46,100 L50,118 L54,100 Z" fill="url(#f-${uid})"/>
+    <!-- cánh trái -->
+    <path d="M42,42 L12,58 L10,78 L40,70 Z" fill="url(#w-${uid})"/>
+    <!-- cánh phải -->
+    <path d="M58,42 L88,58 L90,78 L60,70 Z" fill="url(#w-${uid})"/>
+    <!-- ổn định đuôi trái/phải đối xứng -->
+    <path d="M42,86 L32,106 L46,98 Z" fill="${dark}"/>
+    <path d="M58,86 L68,106 L54,98 Z" fill="${dark}"/>
+    <!-- thân -->
+    <path d="M50,8 L58,28 L60,70 L56,96 L50,102 L44,96 L40,70 L42,28 Z"
+          fill="url(#h-${uid})" stroke="${acc}" stroke-width="1.2" stroke-linejoin="round"/>
+    <!-- cabin -->
+    <ellipse cx="50" cy="32" rx="6" ry="9" fill="#e0f2fe" opacity=".9"/>
+    <ellipse cx="49" cy="28" rx="2" ry="3.5" fill="#fff" opacity=".5"/>
+    <!-- mũi -->
+    <circle cx="50" cy="14" r="2.5" fill="#fff" opacity=".7"/>
+    <!-- họng máy (cặp, giữa thân) -->
+    <rect x="44" y="94" width="4" height="6" rx="1" fill="#020617"/>
+    <rect x="52" y="94" width="4" height="6" rx="1" fill="#020617"/>
+  </svg>`;
+}
+
+function buildMissileSVG(p){
+  /* Diamond / energy bolt bullets — Galaxy Attack style */
+  const uid="m"+Math.random().toString(36).slice(2,8);
+  const col=p.mHead||p.primary||"#22d3ee";
+  const body=p.mColor||col;
+  return `<svg viewBox="0 0 16 40" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="b-${uid}" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0%" stop-color="${col}"/><stop offset="40%" stop-color="#fff"/>
+        <stop offset="100%" stop-color="${body}"/>
+      </linearGradient>
+      
+    </defs>
+    <ellipse cx="8" cy="36" rx="4" ry="6" fill="${col}" opacity=".35"/>
+    <path d="M8,2 L12,14 L8,38 L4,14 Z" fill="url(#b-${uid})" stroke="rgba(255,255,255,.5)" stroke-width=".6"/>
+    <path d="M8,6 L10,14 L8,22 L6,14 Z" fill="#fff" opacity=".55"/>
+  </svg>`;
+}
+
+function applyShipSkin(id){
+  const skin=SKINS.find(s=>s.id===id)||SKINS[0];
+  ship.innerHTML=buildFighterSVG(skin);
+}
+
+function renderShopGrid(){
+  skinGrid.innerHTML="";
+  SKINS.forEach(skin=>{
+    const owned=unlockedSkins.includes(skin.id);
+    const isSelected=selectedSkin===skin.id;
+    const card=document.createElement("div");
+    card.className="skin-card"+(owned?"":" locked")+(isSelected?" selected":"");
+    const preview=document.createElement("div");preview.className="skin-preview";preview.innerHTML=buildFighterSVG(skin);
+    const nameEl=document.createElement("div");nameEl.className="skin-name";nameEl.textContent=skin.name;
+    const mInfo=document.createElement("div");mInfo.className="skin-missile-info";mInfo.textContent="🚀 "+skin.missileName+" (Dmg:"+skin.damage+")";
+    const priceEl=document.createElement("div");
+    if(isSelected){priceEl.className="skin-price selected-tag";priceEl.textContent="ĐANG DÙNG"}
+    else if(owned){priceEl.className="skin-price owned";priceEl.textContent="ĐÃ MỞ · Trang bị"}
+    else{priceEl.className="skin-price";priceEl.textContent="🔒 "+skin.price+" 🪙"}
+    card.append(preview,nameEl,mInfo,priceEl);
+    card.addEventListener("click",()=>{
+      if(isSelected)return;
+      if(owned){selectedSkin=skin.id;saveSkinState();applyShipSkin(skin.id);renderShopGrid();return}
+      if(gold>=skin.price){gold-=skin.price;unlockedSkins.push(skin.id);selectedSkin=skin.id;saveSkinState();refreshGoldDisplays();applyShipSkin(skin.id);powerSound();renderShopGrid()}
+      else hitSound();
+    });
+    skinGrid.appendChild(card);
+  });
+}
+
+shopButton.addEventListener("click",()=>{startScreen.style.display="none";refreshGoldDisplays();renderShopGrid();shopScreen.style.display="flex"});
+closeShopButton.addEventListener("click",()=>{shopScreen.style.display="none";startScreen.style.display="flex"});
+shopButtonOver.addEventListener("click",()=>{gameOverScreen.style.display="none";refreshGoldDisplays();renderShopGrid();shopScreen.style.display="flex"});
+shopButtonWin.addEventListener("click",()=>{winScreen.style.display="none";refreshGoldDisplays();renderShopGrid();shopScreen.style.display="flex"});
+refreshGoldDisplays();applyShipSkin(selectedSkin);
+
+function sound(freq,dur,type="sine",vol=.07){
+  try{if(!audioContext)audioContext=new(window.AudioContext||window.webkitAudioContext)();const o=audioContext.createOscillator(),g=audioContext.createGain();o.frequency.value=freq;o.type=type;o.connect(g);g.connect(audioContext.destination);g.gain.setValueAtTime(vol,audioContext.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioContext.currentTime+dur);o.start();o.stop(audioContext.currentTime+dur)}catch(e){}
+}
+function startSound(){sound(520,.08,"square");setTimeout(()=>sound(760,.12,"square"),80)}
+function pickupSound(){sound(930,.1,"triangle",.05)}
+function diamondSound(){sound(700,.08,"sine",.06);setTimeout(()=>sound(1200,.15,"sine",.06),70)}
+function playerShootSound(){sound(840,.035,"square",.018)}
+function hitSound(){sound(150,.06,"sawtooth",.025);setTimeout(()=>sound(260,.05,"square",.018),35)}
+function powerSound(){sound(650,.08,"triangle",.055);setTimeout(()=>sound(980,.12,"triangle",.055),70)}
+function levelSound(){sound(700,.1,"triangle");setTimeout(()=>sound(950,.15,"triangle"),100)}
+function crashSound(){sound(100,.5,"sawtooth",.09)}
+
+function createBackgroundStars(){
+  // nebula clouds
+  const nebs=[{c:'#4c1d95',x:15,y:20,s:180},{c:'#1e3a8a',x:75,y:35,s:220},{c:'#0e7490',x:40,y:70,s:160},{c:'#7c2d12',x:85,y:80,s:140}];
+  nebs.forEach(n=>{const el=document.createElement('div');el.className='nebula';el.style.background=n.c;el.style.width=n.s+'px';el.style.height=n.s+'px';el.style.left=n.x+'%';el.style.top=n.y+'%';el.style.marginLeft=-(n.s/2)+'px';el.style.marginTop=-(n.s/2)+'px';gameArea.appendChild(el)});
+  // dense starfield
+  for(let i=0;i<70;i++){
+    const star=document.createElement('div');
+    star.className='space-star'+(Math.random()<.12?' twinkle':'');
+    star.style.left=Math.random()*100+'%';
+    star.style.top=Math.random()*100+'%';
+    const size=Math.random()*2.6+0.8;
+    star.style.width=size+'px';star.style.height=size+'px';
+    if(Math.random()<.12){star.style.background='#93c5fd';star.style.boxShadow='0 0 4px #60a5fa'}
+    else if(Math.random()<.08){star.style.background='#fde68a';star.style.boxShadow='0 0 4px #fbbf24'}
+    if(star.classList.contains('twinkle')) star.style.animationDelay=(Math.random()*2.5).toFixed(2)+'s';
+    gameArea.appendChild(star);
+  }
+}
+createBackgroundStars();
+
+let astUid=0;
+function generateAsteroidSVG(){
+  astUid++;const uid="a"+astUid;const isRust=Math.random()<.35;
+  const baseLight=isRust?"#c9a08c":"#aba59d",baseMid=isRust?"#7a5240":"#68625a",baseDark=isRust?"#2b1d16":"#221f1b";
+  const pts=10+Math.floor(Math.random()*4);const coords=[];
+  for(let i=0;i<pts;i++){const ang=(i/pts)*Math.PI*2,r=32+Math.random()*15;coords.push([(50+Math.cos(ang)*r).toFixed(1),(50+Math.sin(ang)*r).toFixed(1)])}
+  const path="M "+coords.map(c=>c[0]+","+c[1]).join(" L ")+" Z";
+  let craters="";
+  for(let i=0;i<4+Math.floor(Math.random()*4);i++){const cx=(28+Math.random()*44).toFixed(1),cy=(28+Math.random()*44).toFixed(1),cr=3+Math.random()*7.5;craters+='<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+cr.toFixed(1)+'" ry="'+(cr*.82).toFixed(1)+'" fill="url(#cg-'+uid+')"/>'}
+  return '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="bg-'+uid+'" cx="35%" cy="28%" r="78%"><stop offset="0%" stop-color="'+baseLight+'"/><stop offset="55%" stop-color="'+baseMid+'"/><stop offset="100%" stop-color="'+baseDark+'"/></radialGradient><radialGradient id="cg-'+uid+'" cx="40%" cy="35%" r="70%"><stop offset="0%" stop-color="rgba(0,0,0,.78)"/><stop offset="70%" stop-color="rgba(0,0,0,.42)"/><stop offset="100%" stop-color="rgba(0,0,0,0)"/></radialGradient></defs><path d="'+path+'" fill="url(#bg-'+uid+')" stroke="rgba(0,0,0,.6)" stroke-width="2.2" stroke-linejoin="round"/>'+craters+'</svg>';
+}
+
+function collision(a,b){
+  // offset* is cheaper than getBoundingClientRect for absolute children of same parent
+  const ax=a.offsetLeft,ay=a.offsetTop,aw=a.offsetWidth,ah=a.offsetHeight;
+  const bx=b.offsetLeft,by=b.offsetTop,bw=b.offsetWidth,bh=b.offsetHeight;
+  const p=5;
+  return !(ax+aw-p<bx+p||ax+p>bx+bw-p||ay+ah-p<by+p||ay+p>by+bh-p);
+}
+function explode(x,y){
+  const n=3;
+  for(let i=0;i<n;i++){const p=document.createElement("div");p.className="particle";const ang=Math.random()*Math.PI*2,dist=16+Math.random()*22;p.style.setProperty("--dx",Math.cos(ang)*dist+"px");p.style.setProperty("--dy",Math.sin(ang)*dist+"px");p.style.left=x+"px";p.style.top=y+"px";p.style.background=Math.random()>.5?"#f97316":"#fbbf24";gameArea.appendChild(p);setTimeout(()=>p.remove(),380)}
+}
+function clearDynamic(){document.querySelectorAll(".asteroid,.enemy-ship,.collect-star,.diamond,.player-bullet,.powerup,.power-text,.particle").forEach(el=>el.remove());playerBullets.forEach(b=>{if(b.el)b.el.remove()});playerBullets.length=0}
+function resetPowers(){doubleShotUntil=0;rapidFireUntil=0;powerStatus.innerText="Bình thường"}
+function clearIntervals(){clearInterval(asteroidTimer);clearInterval(starTimer);clearInterval(diamondTimer);clearInterval(scoreTimer);clearInterval(shootTimer)}
+function resetGame(){bossAlive=false;clearIntervals();clearDynamic();score=0;stage=1;asteroidSpeed=2.0;gameRunning=false;lastPlayerShot=0;resetPowers();scoreText.innerText=0;stageText.innerText=1;targetText.innerText=stageTargets[0];shipX=Math.max(0,gameArea.clientWidth/2-32);ship.style.left=shipX+"px"}
+function startGame(){resetGame();startScreen.style.display="none";gameOverScreen.style.display="none";levelScreen.style.display="none";shopScreen.style.display="none";winScreen.style.display="none";startSound();beginStage();gameArea.focus()}
+function beginStage(){
+  gameRunning=true;bossAlive=false;
+  stageText.innerText=stage;targetText.innerText=stageTargets[stage-1];
+  asteroidSpeed=stage===1?2.0:stage===2?2.45:2.9;
+  const spawn=stage===1?1400:stage===2?1180:1000;
+  asteroidTimer=setInterval(()=>{
+    if(!gameRunning||countEnemies()>=MAX_ENEMIES)return;
+    if(Math.random()<0.32) spawnFormation();
+    else createEnemyShip();
+  },spawn);
+  starTimer=setInterval(createStar,2200);
+  diamondTimer=setInterval(createDiamond,7000);
+  scoreTimer=setInterval(()=>{if(!gameRunning)return;score++;scoreText.innerText=score;checkStageProgress()},300);
+  shootTimer=setInterval(()=>{if(gameRunning){firePlayerBullet();updatePowerStatus()}},50);
+  setTimeout(()=>{if(gameRunning)spawnBoss()},2200+stage*400);
+}
+function checkStageProgress(){if(score>=stageTargets[stage-1]){if(stage<3){gameRunning=false;clearIntervals();clearDynamic();resetPowers();levelSound();stage++;levelTitle.innerText="MÀN "+stage;levelText.innerText=stage===2?"Máy bay địch mạnh hơn + Boss màn 2 xuất hiện. Power-up rơi nhiều hơn.":"Màn cuối! Boss tối thượng + bầy địch dày đặc.";levelScreen.style.display="flex"}else winGame()}}
+continueButton.addEventListener("click",()=>{levelScreen.style.display="none";beginStage();gameArea.focus()});
+
+
+/* ===== ENEMY FIGHTERS (style từ sprite sheet hạng nhỏ) ===== */
+const ENEMY_VARIANTS = 5;
+function buildEnemySVG(variant, tint){
+  const uid="e"+Math.random().toString(36).slice(2,7);
+  const body=tint||"#64748b", dark="#1e293b", light="#94a3b8", acc="#38bdf8";
+  const v=variant%6;
+  if(v===0){ // F-18 style cyan-gray
+    return `<svg viewBox="0 0 64 72" xmlns="http://www.w3.org/2000/svg">
+      <path d="M32,4 L36,16 L40,36 L36,56 L32,64 L28,56 L24,36 L28,16 Z" fill="${body}" stroke="${dark}" stroke-width="1"/>
+      <path d="M24,28 L6,40 L8,48 L26,40 Z" fill="${light}"/><path d="M40,28 L58,40 L56,48 L38,40 Z" fill="${light}"/>
+      <path d="M26,52 L20,66 L28,58 Z" fill="${dark}"/><path d="M38,52 L44,66 L36,58 Z" fill="${dark}"/>
+      <ellipse cx="32" cy="22" rx="4" ry="6" fill="${acc}" opacity=".75"/>
+      <rect x="29" y="54" width="6" height="8" rx="1" fill="${dark}"/></svg>`;
+  }
+  if(v===1){ // green flat jet style
+    return `<svg viewBox="0 0 64 72" xmlns="http://www.w3.org/2000/svg">
+      <path d="M32,2 L38,20 L42,40 L38,58 L32,66 L26,58 L22,40 L26,20 Z" fill="#4d7c0f" stroke="#365314" stroke-width="1"/>
+      <path d="M22,30 L4,48 L10,54 L26,42 Z" fill="#65a30d"/><path d="M42,30 L60,48 L54,54 L38,42 Z" fill="#65a30d"/>
+      <circle cx="12" cy="50" r="3" fill="#facc15"/><circle cx="52" cy="50" r="3" fill="#facc15"/>
+      <circle cx="22" cy="58" r="2.5" fill="#facc15"/><circle cx="42" cy="58" r="2.5" fill="#facc15"/>
+      <ellipse cx="32" cy="24" rx="4" ry="5" fill="#a3e635" opacity=".6"/></svg>`;
+  }
+  if(v===2){ // wide interceptor
+    return `<svg viewBox="0 0 64 68" xmlns="http://www.w3.org/2000/svg">
+      <path d="M32,6 L40,24 L48,50 L40,58 L32,62 L24,58 L16,50 L24,24 Z" fill="${body}" stroke="${dark}" stroke-width="1.1"/>
+      <path d="M18,32 L2,44 L4,52 L20,46 Z" fill="${light}"/><path d="M46,32 L62,44 L60,52 L44,46 Z" fill="${light}"/>
+      <ellipse cx="32" cy="26" rx="5" ry="7" fill="${acc}" opacity=".7"/>
+      <circle cx="26" cy="54" r="3" fill="${dark}"/><circle cx="38" cy="54" r="3" fill="${dark}"/></svg>`;
+  }
+  if(v===3){ // delta
+    return `<svg viewBox="0 0 64 68" xmlns="http://www.w3.org/2000/svg">
+      <path d="M32,4 L50,50 L32,62 L14,50 Z" fill="${body}" stroke="${dark}" stroke-width="1.2"/>
+      <path d="M32,16 L44,48 L32,54 L20,48 Z" fill="${light}" opacity=".5"/>
+      <ellipse cx="32" cy="28" rx="5" ry="8" fill="${acc}" opacity=".7"/>
+      <rect x="28" y="52" width="8" height="8" rx="1" fill="${dark}"/></svg>`;
+  }
+  if(v===4){ // twin boom
+    return `<svg viewBox="0 0 64 68" xmlns="http://www.w3.org/2000/svg">
+      <path d="M32,8 L38,28 L42,52 L32,60 L22,52 L26,28 Z" fill="${body}" stroke="${dark}" stroke-width="1"/>
+      <rect x="10" y="30" width="10" height="28" rx="2" fill="${light}" stroke="${dark}"/>
+      <rect x="44" y="30" width="10" height="28" rx="2" fill="${light}" stroke="${dark}"/>
+      <path d="M20,36 L12,36" stroke="${dark}" stroke-width="2"/><path d="M44,36 L52,36" stroke="${dark}" stroke-width="2"/>
+      <ellipse cx="32" cy="24" rx="4" ry="6" fill="${acc}" opacity=".75"/></svg>`;
+  }
+  // v5: Raiden small drone
+  return `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+    <path d="M32,10 L44,30 L40,50 L32,56 L24,50 L20,30 Z" fill="#6366f1" stroke="#312e81" stroke-width="1.1"/>
+    <path d="M20,28 L6,22 L4,30 L18,38 Z" fill="#818cf8"/><path d="M44,28 L58,22 L60,30 L46,38 Z" fill="#818cf8"/>
+    <circle cx="32" cy="28" r="6" fill="#c4b5fd" opacity=".8"/>
+    <circle cx="32" cy="28" r="3" fill="#fff" opacity=".5"/>
+    <circle cx="26" cy="48" r="2.5" fill="#1e1b4b"/><circle cx="38" cy="48" r="2.5" fill="#1e1b4b"/></svg>`;
+}
+
+
+
+/* ===== BOSSES mỗi màn ===== */
+function buildBossSVG(stageNum){
+  const uid="boss"+stageNum+Date.now();
+  if(stageNum===1){
+    return `<svg viewBox="0 0 140 100" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="b1-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fef08a"/><stop offset="50%" stop-color="#ca8a04"/><stop offset="100%" stop-color="#713f12"/></linearGradient>
+      <radialGradient id="c1-${uid}" cx="50%" cy="40%" r="50%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#facc15"/></radialGradient></defs>
+      <path d="M70,10 L90,30 L100,60 L90,85 L70,95 L50,85 L40,60 L50,30 Z" fill="url(#b1-${uid})" stroke="#fde68a" stroke-width="1.5"/>
+      <path d="M50,40 L15,50 L10,65 L48,60 Z" fill="#a16207"/><path d="M90,40 L125,50 L130,65 L92,60 Z" fill="#a16207"/>
+      <ellipse cx="70" cy="45" rx="12" ry="16" fill="url(#c1-${uid})"/>
+      <rect x="30" y="55" width="8" height="18" rx="2" fill="#1c1917" stroke="#facc15"/><rect x="102" y="55" width="8" height="18" rx="2" fill="#1c1917" stroke="#facc15"/>
+    </svg>`;
+  }
+  if(stageNum===2){
+    return `<svg viewBox="0 0 150 110" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="b2-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e9d5ff"/><stop offset="40%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#4c1d95"/></linearGradient>
+      <radialGradient id="c2-${uid}" cx="50%" cy="40%" r="50%"><stop offset="0%" stop-color="#fff"/><stop offset="100%" stop-color="#c084fc"/></radialGradient></defs>
+      <path d="M75,8 L95,28 L105,58 L95,88 L75,98 L55,88 L45,58 L55,28 Z" fill="url(#b2-${uid})" stroke="#f5d0fe" stroke-width="1.5"/>
+      <path d="M55,35 L12,28 L5,55 L18,72 L50,58 Z" fill="#7c3aed"/><path d="M95,35 L138,28 L145,55 L132,72 L100,58 Z" fill="#7c3aed"/>
+      <ellipse cx="75" cy="48" rx="14" ry="18" fill="url(#c2-${uid})"/>
+      <rect x="25" y="58" width="9" height="22" rx="2" fill="#1e1b4b" stroke="#22d3ee"/><rect x="116" y="58" width="9" height="22" rx="2" fill="#1e1b4b" stroke="#22d3ee"/>
+    </svg>`;
+  }
+  return `<svg viewBox="0 0 180 130" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="b3-${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fef9c3"/><stop offset="30%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#1e3a5f"/></linearGradient>
+      <linearGradient id="w3-${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#22d3ee"/><stop offset="50%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#22d3ee"/></linearGradient>
+      <radialGradient id="c3-${uid}" cx="50%" cy="35%" r="55%"><stop offset="0%" stop-color="#fff"/><stop offset="50%" stop-color="#67e8f9"/><stop offset="100%" stop-color="#1d4ed8"/></radialGradient>
+    </defs>
+    <path d="M90,15 L115,40 L125,70 L110,100 L90,115 L70,100 L55,70 L65,40 Z" fill="url(#b3-${uid})" stroke="#fde68a" stroke-width="1.8"/>
+    <path d="M70,45 L20,35 L8,65 L20,90 L65,75 Z" fill="url(#w3-${uid})"/><path d="M110,45 L160,35 L172,65 L160,90 L115,75 Z" fill="url(#w3-${uid})"/>
+    <ellipse cx="90" cy="55" rx="18" ry="24" fill="url(#c3-${uid})"/>
+    <rect x="28" y="68" width="10" height="26" rx="2" fill="#0f172a" stroke="#fbbf24"/><rect x="142" y="68" width="10" height="26" rx="2" fill="#0f172a" stroke="#fbbf24"/>
+    <circle cx="90" cy="22" r="5" fill="#22d3ee"/><circle cx="90" cy="22" r="2.5" fill="#fff"/>
+  </svg>`;
+}
+function spawnBoss(){
+  if(!gameRunning||bossAlive)return;
+  bossAlive=true;
+  const el=document.createElement("div");
+  el.className="enemy-ship boss";
+  const sizes={1:[100,75],2:[112,84],3:[130,98]};
+  const sz=sizes[stage]||sizes[3];
+  el.style.width=sz[0]+"px";el.style.height=sz[1]+"px";
+  el.style.left=(gameArea.clientWidth/2-sz[0]/2)+"px";
+  el.style.top="-110px";
+  const hpMap={1:10,2:16,3:24};
+  const hp=hpMap[stage]||16;
+  el.dataset.hp=String(hp);el.dataset.destroyed="0";el.dataset.enemy="1";el.dataset.boss="1";
+  el.innerHTML=buildBossSVG(stage);
+  el.appendChild(makeHpBar(hp));
+  gameArea.appendChild(el);
+  let y=-110,dir=1,baseX=gameArea.clientWidth/2-sz[0]/2;
+  function move(){
+    if(!gameRunning||!el.isConnected){bossAlive=false;return}
+    if(y<36)y+=1.15;
+    else{baseX+=dir*(1.5+stage*0.25);if(baseX<8)dir=1;if(baseX>gameArea.clientWidth-sz[0]-8)dir=-1}
+    el.style.top=y+"px";el.style.left=baseX+"px";
+    if(collision(ship,el)){gameOver();return}
+    requestAnimationFrame(move);
+  }
+  move();
+}
+
+
+function makeHpBar(maxHp){
+  const wrap=document.createElement("div");
+  wrap.className="asteroid-hp";
+  wrap.dataset.maxHp=String(maxHp);
+  const fill=document.createElement("div");
+  fill.className="asteroid-hp-fill";
+  fill.style.width="100%";
+  // green when full
+  fill.style.background="#22c55e";
+  wrap.appendChild(fill);
+  return wrap;
+}
+function updateHpBar(el,hp){
+  const bar=el.querySelector(".asteroid-hp");
+  if(!bar)return;
+  const max=Number(bar.dataset.maxHp||1)||1;
+  const ratio=Math.max(0,Math.min(1,hp/max));
+  const fill=bar.querySelector(".asteroid-hp-fill");
+  if(fill){
+    fill.style.width=(ratio*100)+"%";
+    if(ratio>0.55)fill.style.background="#22c55e";
+    else if(ratio>0.25)fill.style.background="#eab308";
+    else fill.style.background="#ef4444";
+  }
+}
+
+function createEnemyShip(opts){
+  if(!gameRunning)return;
+  if(countEnemies()>=MAX_ENEMIES)return;
+  /* opts: {x,y,variant,hp,size,formation,vx,vy,rot} */
+  opts=opts||{};
+  const el=document.createElement("div");
+  el.className="enemy-ship"+(opts.formation?" formation":"");
+  // Proportional sizes: small drones 28-34, fighters 40-48, heavy 52-58
+  const size=opts.size||(36+Math.random()*10);
+  el.style.width=size+"px";
+  el.style.height=(size*1.15)+"px";
+  const startX=opts.x!=null?opts.x:Math.random()*(gameArea.clientWidth-size);
+  el.style.left=startX+"px";
+  el.style.top=(opts.y!=null?opts.y:-size)+"px";
+  const hpRanges=stage===1?[1,2]:stage===2?[1,3]:[2,4];
+  let hp=opts.hp!=null?opts.hp:Math.floor(hpRanges[0]+Math.random()*(hpRanges[1]-hpRanges[0]+1));
+  el.dataset.hp=String(hp);el.dataset.destroyed="0";el.dataset.enemy="1";
+  const variant=opts.variant!=null?opts.variant:Math.floor(Math.random()*6);
+  const tints=["#5b6b8a","#4a5d7a","#6b7c9a","#3d4f6f","#64748b","#6366f1"];
+  el.innerHTML=buildEnemySVG(variant,tints[variant%tints.length]);
+  el.appendChild(makeHpBar(hp));
+  // orientation: 0= upright (nose down toward player), 180= inverted formation look
+  const rot=opts.rot!=null?opts.rot:0;
+  el.style.transform="rotate("+rot+"deg)";
+  gameArea.appendChild(el);
+  let y=opts.y!=null?opts.y:-size;
+  let x=startX;
+  const fallSpeed=opts.vy!=null?opts.vy:asteroidSpeed*(.9+Math.random()*.3)*(hp>2?0.88:1);
+  const vx=opts.vx||0;
+  let sway=Math.random()*Math.PI*2;
+  const useSway=!opts.formation;
+  function move(){
+    if(!gameRunning||!el.isConnected)return;
+    y+=fallSpeed;x+=vx;
+    if(useSway){sway+=0.028;x+=Math.sin(sway)*0.35}
+    el.style.top=y+"px";el.style.left=x+"px";
+    if(collision(ship,el)){gameOver();return}
+    if(y>gameArea.clientHeight+size||x<-60||x>gameArea.clientWidth+60){el.remove();return}
+    requestAnimationFrame(move);
+  }
+  move();
+}
+
+/** Đội hình ngang (hàng ngang) hoặc dọc (cột) */
+function spawnFormation(){
+  if(!gameRunning)return;
+  const W=gameArea.clientWidth;
+  const type=Math.random();
+  const variant=Math.floor(Math.random()*6);
+  const hp=stage===1?1:stage===2?2:3;
+  const size=34+stage*2;
+  if(type<0.45){
+    // HÀNG NGANG — 3~5 máy bay
+    const n=2+Math.floor(Math.random()*2);
+    const gap=size+10;
+    const total=n*gap;
+    const left=Math.max(8,(W-total)/2+Math.random()*40-20);
+    for(let i=0;i<n;i++){
+      createEnemyShip({
+        x:left+i*gap, y:-size-Math.random()*20,
+        variant, hp, size, formation:true, rot:0,
+        vy:asteroidSpeed*(0.85+stage*0.08)
+      });
+    }
+  }else if(type<0.75){
+    // CỘT DỌC — 3~4 máy bay
+    const n=2+Math.floor(Math.random()*2);
+    const x=40+Math.random()*(W-80-size);
+    for(let i=0;i<n;i++){
+      createEnemyShip({
+        x:x+Math.sin(i)*8, y:-size-i*(size+12),
+        variant, hp, size:size-2, formation:true, rot:0,
+        vy:asteroidSpeed*(0.8+stage*0.1)
+      });
+    }
+  }else if(type<0.9){
+    // V — mũi nhọn
+    const cx=W/2-size/2;
+    createEnemyShip({x:cx,y:-size,variant,hp,size,formation:true,vy:asteroidSpeed});
+    createEnemyShip({x:cx-size-8,y:-size*2,variant,hp,size:size-4,formation:true,vy:asteroidSpeed});
+    createEnemyShip({x:cx+size+8,y:-size*2,variant,hp,size:size-4,formation:true,vy:asteroidSpeed});
+    if(stage>=2){
+      createEnemyShip({x:cx-size*2-12,y:-size*3.2,variant,hp,size:size-6,formation:true,vy:asteroidSpeed});
+      createEnemyShip({x:cx+size*2+12,y:-size*3.2,variant,hp,size:size-6,formation:true,vy:asteroidSpeed});
+    }
+  }else{
+    // Hàng ngang bay chéo (có vx)
+    const n=3;
+    const left=Math.random()<.5?10:W-size*n-40;
+    const dir=left<W/2?0.6:-0.6;
+    for(let i=0;i<n;i++){
+      createEnemyShip({
+        x:left+i*(size+6), y:-size-i*6,
+        variant, hp, size:size-2, formation:true,
+        vx:dir, vy:asteroidSpeed*0.95
+      });
+    }
+  }
+}
+
+function createAsteroid(){
+  /* Thiên thạch đã chuyển thành máy bay địch */
+  if(!gameRunning)return;
+  createEnemyShip();
+}
+
+function createStar(){if(!gameRunning)return;const star=document.createElement("div");star.className="collect-star";star.textContent="⭐";star.style.left=Math.random()*(gameArea.clientWidth-40)+"px";star.style.top="-40px";gameArea.appendChild(star);let y=-40;function move(){if(!gameRunning||!star.isConnected)return;y+=1.8;star.style.top=y+"px";if(collision(ship,star)){score+=10;scoreText.innerText=score;pickupSound();popupText("+10 ⭐",star.offsetLeft,star.offsetTop);star.remove();checkStageProgress();return}if(y>gameArea.clientHeight){star.remove();return}requestAnimationFrame(move)}move()}
+function createDiamond(){if(!gameRunning)return;const diamond=document.createElement("div");diamond.className="diamond";diamond.textContent="💎";diamond.style.left=Math.random()*(gameArea.clientWidth-40)+"px";diamond.style.top="-40px";gameArea.appendChild(diamond);let y=-40;function move(){if(!gameRunning||!diamond.isConnected)return;y+=1.65;diamond.style.top=y+"px";if(collision(ship,diamond)){score+=50;scoreText.innerText=score;diamondSound();popupText("+50 💎",diamond.offsetLeft,diamond.offsetTop);diamond.remove();checkStageProgress();return}if(y>gameArea.clientHeight){diamond.remove();return}requestAnimationFrame(move)}move()}
+function popupText(text,x,y){const p=document.createElement("div");p.className="power-text";p.textContent=text;p.style.left=x+"px";p.style.top=y+"px";gameArea.appendChild(p);let opacity=1,py=y;function animate(){py-=.7;opacity-=.025;p.style.top=py+"px";p.style.opacity=opacity;if(opacity<=0){p.remove();return}requestAnimationFrame(animate)}animate()}
+
+function firePlayerBullet(){
+  if(!gameRunning)return;
+  const skin=SKINS.find(s=>s.id===selectedSkin)||SKINS[0];
+  const now=performance.now();const rapid=now<rapidFireUntil,doubleShot=now<doubleShotUntil;
+  const cooldown=rapid?130:370;if(now-lastPlayerShot<cooldown)return;lastPlayerShot=now;
+  if(doubleShot){
+    createPlayerBullet(shipX+12,skin);createPlayerBullet(shipX+32,skin);createPlayerBullet(shipX+52,skin);
+  }else{
+    createPlayerBullet(shipX+32,skin);
+  }
+  playerShootSound();
+}
+function createPlayerBullet(x,skin){
+  if(playerBullets.length>=MAX_BULLETS)return;
+  const bullet=document.createElement("div");
+  bullet.className="player-bullet";
+  const w=(skin.mSize&&skin.mSize[0])||8;
+  const h=(skin.mSize&&skin.mSize[1])||28;
+  bullet.style.width=w+"px";
+  bullet.style.height=h+"px";
+  const col=skin.mHead||skin.primary||"#fde047";
+  bullet.style.background="linear-gradient(to top,#fff,"+col+",transparent)";
+  bullet.style.borderRadius="4px";
+  bullet.style.boxShadow="0 0 6px "+col;
+  const y=gameArea.clientHeight-100;
+  bullet.style.left=x+"px";
+  bullet.style.top=y+"px";
+  gameArea.appendChild(bullet);
+  const data={el:bullet,x:x,y:y,speed:skin.mSpeed||8,damage:skin.damage||1,alive:true};
+  playerBullets.push(data);
+  movePlayerBullet(data);
+}
+
+function removeBullet(bullet){
+  bullet.alive=false;
+  if(bullet.el&&bullet.el.isConnected)bullet.el.remove();
+  const i=playerBullets.indexOf(bullet);
+  if(i>=0)playerBullets.splice(i,1);
+}
+function movePlayerBullet(bullet){
+  if(!gameRunning||!bullet.alive||!bullet.el||!bullet.el.isConnected){removeBullet(bullet);return}
+  bullet.y-=bullet.speed;
+  bullet.el.style.top=bullet.y+"px";
+  // only check enemies every frame but use lighter path
+  const enemies=document.getElementsByClassName("enemy-ship");
+  for(let i=0;i<enemies.length;i++){
+    const ast=enemies[i];
+    if(ast.isConnected&&collision(bullet.el,ast)){
+      removeBullet(bullet);
+      damageAsteroid(ast,bullet.damage);
+      return;
+    }
+  }
+  if(bullet.y<-40){removeBullet(bullet);return}
+  requestAnimationFrame(()=>movePlayerBullet(bullet));
+}
+function damageAsteroid(asteroid,dmg=1){
+  if(!asteroid.isConnected||asteroid.dataset.destroyed==="1")return;
+  let hp=Number(asteroid.dataset.hp||1)-dmg;asteroid.dataset.hp=String(hp);
+  updateHpBar(asteroid,hp);
+  asteroid.classList.add("hit");setTimeout(()=>asteroid.classList.remove("hit"),70);hitSound();
+  if(hp<=0)destroyAsteroid(asteroid);
+}
+function destroyAsteroid(asteroid){
+  if(!asteroid.isConnected||asteroid.dataset.destroyed==="1")return;
+  asteroid.dataset.destroyed="1";
+  const cx=asteroid.offsetLeft+asteroid.offsetWidth/2,cy=asteroid.offsetTop+asteroid.offsetHeight/2;
+  const isBoss=asteroid.dataset.boss==="1";
+  const pts=isBoss?50:5;
+  score+=pts;scoreText.innerText=score;
+  popupText(isBoss?"+50 BOSS!":"+5",asteroid.offsetLeft,asteroid.offsetTop);
+  explode(cx,cy);if(isBoss){explode(cx+10,cy-10);bossAlive=false}
+  asteroid.remove();
+  const chance=stage===1?0.14:stage===2?0.22:0.30;
+  if(Math.random()<chance)createPowerup(cx,cy,Math.random()<0.5?"double":"rapid");
+  checkStageProgress();
+}
+function createPowerup(x,y,type){
+  const el=document.createElement("div");el.className="powerup "+type;el.textContent=type==="double"?"×2":"⚡";
+  el.style.left=(x-19)+"px";el.style.top=(y-19)+"px";gameArea.appendChild(el);let py=y-19;
+  function move(){if(!gameRunning||!el.isConnected){el.remove();return}py+=1.7;el.style.top=py+"px";if(collision(ship,el)){activatePower(type);el.remove();return}if(py>gameArea.clientHeight){el.remove();return}requestAnimationFrame(move)}
+  move();
+}
+function activatePower(type){const now=performance.now(),dur=8000;if(type==="double")doubleShotUntil=Math.max(doubleShotUntil,now)+dur;else rapidFireUntil=Math.max(rapidFireUntil,now)+dur;powerSound();updatePowerStatus()}
+function updatePowerStatus(){const now=performance.now(),d=now<doubleShotUntil,r=now<rapidFireUntil;powerStatus.innerText=d&&r?"Double + Rapid":d?"Double Shot":r?"Rapid Fire":"Bình thường"}
+
+function moveShip(){
+  if(gameRunning){
+    if(moveLeft)shipX-=6.6;if(moveRight)shipX+=6.6;
+    if(shipX<0)shipX=0;const sw=ship.clientWidth||64;if(shipX>gameArea.clientWidth-sw)shipX=gameArea.clientWidth-sw;
+    ship.style.left=shipX+"px";
+  }
+  requestAnimationFrame(moveShip);
+}
+moveShip();
+
+function pointerToShipX(clientX){const rect=gameArea.getBoundingClientRect();let x=clientX-rect.left-ship.clientWidth/2;x=Math.max(0,Math.min(gameArea.clientWidth-ship.clientWidth,x));shipX=x}
+gameArea.addEventListener("mousedown",e=>{if(gameRunning)pointerToShipX(e.clientX)});
+gameArea.addEventListener("mousemove",e=>{if(gameRunning&&e.buttons===1)pointerToShipX(e.clientX)});
+gameArea.addEventListener("touchstart",e=>{if(gameRunning)pointerToShipX(e.touches[0].clientX)},{passive:true});
+gameArea.addEventListener("touchmove",e=>{if(gameRunning){pointerToShipX(e.touches[0].clientX);e.preventDefault()}},{passive:false});
+document.addEventListener("keydown",e=>{if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a")moveLeft=true;if(e.key==="ArrowRight"||e.key.toLowerCase()==="d")moveRight=true});
+document.addEventListener("keyup",e=>{if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a")moveLeft=false;if(e.key==="ArrowRight"||e.key.toLowerCase()==="d")moveRight=false});
+function bindHold(btn,onDown,onUp){btn.addEventListener("pointerdown",e=>{e.preventDefault();onDown()});btn.addEventListener("pointerup",onUp);btn.addEventListener("pointercancel",onUp);btn.addEventListener("pointerleave",onUp)}
+bindHold(leftButton,()=>moveLeft=true,()=>moveLeft=false);
+bindHold(rightButton,()=>moveRight=true,()=>moveRight=false);
+
+function updateHighScore(){if(score>highScore){highScore=score;highScoreText.innerText=highScore;localStorage.setItem("spaceDodgeHighScore",String(highScore))}}
+function gameOver(){if(!gameRunning)return;gameRunning=false;clearIntervals();updateHighScore();crashSound();const earned=awardGold(Math.floor(score/20)+(stage-1)*15);finalScore.innerText=score;goldEarnedOverText.innerText=earned;gameOverScreen.style.display="flex"}
+function winGame(){gameRunning=false;clearIntervals();updateHighScore();levelSound();const earned=awardGold(Math.floor(score/20)+stage*25);winScore.innerText=score;goldEarnedWinText.innerText=earned;winScreen.style.display="flex"}
+startButton.addEventListener("click",startGame);
+restartButton.addEventListener("click",startGame);
+playAgainButton.addEventListener("click",startGame);
+</script>
+</body>
+</html>
